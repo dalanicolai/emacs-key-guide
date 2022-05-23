@@ -40,11 +40,13 @@
                                       ((Info-summary))
                                       ((describe-mode))))))
 (defvar-local key-guide-string nil)
+(defvar-local key-guide-hydra-style nil)
 
 (setq gobal-navigation-guide '(("Navigation"
                                ((next-line)))))
 
 (defun key-guide-format-keys-to-functions (doc-alist &optional kill)
+  (interactive (list (read (read-string "Insert alist: "))))
   (let ((function-style-alist
          (mapcar (lambda (c)
                    (cons (car c)
@@ -60,7 +62,7 @@
                                                      keys)))))
                                  (cdr c))))
                  doc-alist)))
-    (if kill
+    (if (or (called-interactively-p 'any) kill)
         (kill-new (pp-to-string function-style-alist))
       function-style-alist)))
 
@@ -128,9 +130,15 @@
       (dotimes (i (length doc-alist))
         (let ((title (car (nth i doc-alist))))
           (setq doc (concat doc
-                            (make-string (max (length title)
-                                              (1- (+ (apply '+ (nth i max-string-lengths)) 4)))
-                                         9472)
+                            (propertize 
+                             (make-string (max (length title)
+                                               (1- (+ (apply '+ (nth i max-string-lengths)) 4)))
+                                          (if key-guide-hydra-style
+                                              (string-to-char "-")
+                                            9472))
+                             'face (if key-guide-hydra-style
+                                       'default
+                                     'shadow))
                             "  "))))
       (setq doc (concat doc "\n"))
       (dotimes (i (length bindings-transpose))
@@ -140,9 +148,13 @@
                   (keys-length (+ (car (nth j max-string-lengths)) 3)))
               (setq doc (concat doc
                                 (concat (string-pad (when-let (s (car (nth j b)))
-                                                      (concat "[" s "] "))
+                                                      (if key-guide-hydra-style
+                                                          (concat "[" (propertize s 'face 'font-lock-comment-face) "] ")
+                                                        (concat (propertize s 'face 'font-lock-function-name-face)
+                                                                (propertize " → " 'face 'font-lock-comment-face))))
                                                     keys-length
-                                                    nil)
+                                                    nil
+                                                    (unless key-guide-hydra-style t))
                                         (string-pad (cdr (nth j b))
                                                     (max (- title-length keys-length) (cadr (nth j max-string-lengths))))
                                         "  ")))))
@@ -184,12 +196,16 @@
 (defun key-guide-set-doc-alist (mode alist)
   (setf (alist-get mode key-guide-alist) alist))
 
+(defun key-guide-hydra-style ()
+  (setq key-guide-hydra-style t))
+
 (defun key-guide-hook-function ()
   (when-let (alist (alist-get major-mode key-guide-alist))
     (unless key-guide-string
       (setq key-guide-string (key-guide--create alist)))))
 
 (add-hook 'after-change-major-mode-hook 'key-guide-hook-function)
+;; (add-hook 'after-change-major-mode-hook 'key-guide-hydra-style)
 
 (global-set-key (kbd "C-.") #'key-guide-toggle)
 

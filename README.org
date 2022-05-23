@@ -17,10 +17,11 @@ for the most simple alternative, just download en load the key-guide.el file.
 Key overviews can be provided in several ways, ranging from very simple to
 simple.
 
-*The quick 'static' way*  Add a 'static' key guide for some major mode by defining
-a 'keys style' /key-guide-alist/ containing elements of the form =(heading . (keybindings))=,
-provided as a string and a list of strings (formatted in compliance with =kbd=
-format) respectively, using the function [[help:key-guide-set-doc-alist][key-guide-set-doc-alist]] as follows:
+*The quick 'static' way* Add a 'static' key guide for some major mode by defining
+a 'keys style' /key-guide-alist/ containing elements of the form =(heading .
+(keybindings))=, provided as a string and a list of strings (formatted in
+compliance with =kbd= format) respectively, using the function
+[[help:key-guide-set-doc-alist][key-guide-set-doc-alist]] as follows:
 #+begin_src emacs-lisp :results silent
   (key-guide-set-doc-alist 'Info-mode '(("Navigation" "n" "p" "SPC" "DEL")
                                         ("Navigation" "]" "[" "m" "TAB" "M-TAB")
@@ -62,6 +63,15 @@ can use it in the /key-guide-set-doc-alist/ function as follows:
                                                    ("Help"
                                                     ((Info-summary))
                                                     ((describe-mode))))))
+#+end_src
+
+** Hydra style formatting
+The key guides get formatted in 'which-key' style by default. If you prefer a
+hydra style format then either configure it per mode by adding the
+=key-guide-hydra-style= function to the appropriate major-mode hook. Or to use it
+globally, add the function to the =after-change-major-mode-hook= as follows:
+#+begin_src emacs-lisp :results silent
+  (add-hook 'after-change-major-mode-hook 'key-guide-hydra-style)
 #+end_src
 
 
