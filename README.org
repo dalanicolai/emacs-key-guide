@@ -1,0 +1,75 @@
+* key-guide
+Easily add key bindings overviews to your buffers.
+
+* Introduction
+This package package provides functionality for quickly adding key binding
+overviews, similar to the [[https://github.com/abo-abo/hydra][hydra]] and [[https://github.com/magit/transient][transient]] packages, but in a often much
+faster way. Both hydra and transient provide their own separate keymaps, which
+are often unwanted if one only tries to provide a simple key binding overview.
+
+* Installation
+
+This package for the moment will not be available from any package archive, so
+use any prefered method to install this package directly from the git repo. Or
+for the most simple alternative, just download en load the key-guide.el file.
+
+* Usage
+Key overviews can be provided in several ways, ranging from very simple to
+simple.
+
+*The quick 'static' way*  Add a 'static' key guide for some major mode by defining
+a 'keys style' /key-guide-alist/ containing elements of the form =(heading . (keybindings))=,
+provided as a string and a list of strings (formatted in compliance with =kbd=
+format) respectively, using the function [[help:key-guide-set-doc-alist][key-guide-set-doc-alist]] as follows:
+#+begin_src emacs-lisp :results silent
+  (key-guide-set-doc-alist 'Info-mode '(("Navigation" "n" "p" "SPC" "DEL")
+                                        ("Navigation" "]" "[" "m" "TAB" "M-TAB")
+                                        ("Help" "?" "H")))
+#+end_src
+then after visiting some =Info= buffer, press ~C-.~ to toggle the key guide. The
+above snippet is only an example, as a key-guide definition for Info-mode is
+already included in the package.
+
+When defining keys directly in the alist, these keys will not automatically get
+updated after some change in the keybindings. If you prefer the keys to get
+updated automatically when changing the keybindings, define a 'function style'
+key-guide-alist.
+
+*The robust, but still fast, 'dynamic' way* For defining a dynamic key guide, the
+ fastest method is to define a static alist containing keys of currently valid
+ keybindings, then visit a buffer of the mode where for which the key-guide is
+ destined, and create a dynamic style key-guide-alist using the
+ =key-guide-format-keys-to-functions= function as follows:
+#+begin_src emacs-lisp :results silent
+  (key-guide-format-keys-to-functions '(("Navigation" "n" "p" "SPC" "DEL")
+                                        ("Navigation" "]" "[" "m" "<tab>" "M-<tab>")
+                                        ("Help" "?" "H")))
+#+end_src
+This will add the 'dynamic style' key-guide-alist to the kill ring so that you
+can use it in the /key-guide-set-doc-alist/ function as follows:
+#+begin_src emacs-lisp :results silent
+  (key-guide-set-doc-alist 'Info-mode '((Info-mode ("Navigation"
+                                                    ((Info-next))
+                                                    ((Info-prev))
+                                                    ((Info-scroll-up))
+                                                    ((Info-scroll-down)))
+                                                   ("Navigation"
+                                                    ((Info-forward-node))
+                                                    ((Info-backward-node))
+                                                    ((Info-menu))
+                                                    ((Info-next-reference))
+                                                    ((Info-prev-reference)))
+                                                   ("Help"
+                                                    ((Info-summary))
+                                                    ((describe-mode))))))
+#+end_src
+
+
+
+
+
+
+
+
+
+
