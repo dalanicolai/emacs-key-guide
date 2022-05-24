@@ -7,6 +7,12 @@ overviews, similar to the [[https://github.com/abo-abo/hydra][hydra]] and [[http
 faster way. Both hydra and transient provide their own separate keymaps, which
 are often unwanted if one only tries to provide a simple key binding overview.
 
+[[key-guide-which-key-style.png]]
+/Which key style (vanilla Emacs)/
+
+[[key-guide-hydra-style.png]]
+/Which key style (Spacemacs)/
+
 * Installation
 
 This package for the moment will not be available from any package archive (see
@@ -32,6 +38,17 @@ then after visiting some =Info= buffer, press ~C-.~ to toggle the key guide. The
 above snippet is only an example, as a key-guide definition for Info-mode is
 already included in the package.
 
+It is also possible to add custom descriptions by replacing a single key
+string with a list of the format (key-string description), both strings.
+This can also be used to print two keybindings on a single line:
+#+begin_src emacs-lisp :results silent
+  (key-guide-set-doc-alist 'Info-mode '(("Navigation"
+                                         ("]/[" "forward/backward node")
+                                         ("SPC/DEL" "forward/backward screen")
+                                         ("n/p" "next/prev main node"))
+                                        ("Help" "?" "H")))
+#+end_src
+
 When defining keys directly in the alist, these keys will not automatically get
 updated after some change in the keybindings. If you prefer the keys to get
 updated automatically when changing the keybindings, define a 'function style'
@@ -47,6 +64,9 @@ key-guide-alist.
                                         ("Navigation" "]" "[" "m" "<tab>" "M-<tab>")
                                         ("Help" "?" "H")))
 #+end_src
+(it is also supported to pass alists including custom descriptions to the
+=key-guide-format-keys-to-functions= function).
+
 This will add the 'dynamic style' key-guide-alist to the kill ring so that you
 can use it in the /key-guide-set-doc-alist/ function as follows:
 #+begin_src emacs-lisp :results silent
