@@ -9,9 +9,10 @@ are often unwanted if one only tries to provide a simple key binding overview.
 
 * Installation
 
-This package for the moment will not be available from any package archive, so
-use any prefered method to install this package directly from the git repo. Or
-for the most simple alternative, just download en load the key-guide.el file.
+This package for the moment will not be available from any package archive (see
+[[https://github.com/dalanicolai/emacs-key-guide#contribute][Contribute]], so use any prefered method to install this package directly from the
+git repo. Or for the most simple alternative, just download en load the
+key-guide.el file.
 
 * Usage
 Key overviews can be provided in several ways, ranging from very simple to
@@ -74,6 +75,10 @@ globally, add the function to the =after-change-major-mode-hook= as follows:
   (add-hook 'after-change-major-mode-hook 'key-guide-hydra-style)
 #+end_src
 
+* Contribute
+Contributions are very much appreciated. You could contribute by helping to
+prepare the package for publication on some archive (see [[https://github.com/melpa/melpa/blob/master/CONTRIBUTING.org#making-your-package-ready-for-inclusion][the MELPA guide]] for
+advice), or by making a donation (maybe also check out [[https://github.com/dalanicolai][my other packages]]).
 
 
 
