@@ -41,9 +41,18 @@
                                       ((describe-mode))))))
 (defvar-local key-guide-string nil)
 (defvar-local key-guide-hydra-style nil)
+(defvar-local key-guide-show nil)
+(defvar-local key-guide-associated-buffer nil)
+
 
 (setq gobal-navigation-guide '(("Navigation"
                                ((next-line)))))
+
+(defun key-guide-alist-get ()
+  (or (when (and (featurep 'evil)
+                 (not (eq evil-state 'emacs))))
+      (alist-get (cons major-mode evil-state) key-guide-alist)
+      (alist-get major-mode key-guide-alist)))
 
 (defun key-guide-format-keys-to-functions (doc-alist &optional kill)
   (interactive (list (read (read-string "Insert alist: "))))
@@ -169,32 +178,43 @@
  (key-guide-format-functions-to-keys gobal-navigation-guide))
 
 (defun key-guide-show (&optional doc-alist)
-  (if doc-alist
-      (setq key-guide-string (key-guide--create doc-alist))
-    (unless key-guide-string
-      (setq key-guide-string (key-guide--create (alist-get major-mode key-guide-alist)))))
-  (let ((key-guide key-guide-string))
-    (with-current-buffer (get-buffer-create "*key-guide*")
-      (erase-buffer)
-      (setq cursor-type nil)
-      (insert key-guide)
-      (setq truncate-lines t)
-      (read-only-mode)
-      (goto-char (point-min))
-      (display-buffer-at-bottom (current-buffer)
-                                (list (cons 'window-height (count-lines (point-min) (point-max)))
-                                      (cons 'window-parameters '((mode-line-format . none)
-                                                                 (no-other-window . t)))
-                                      (cons 'dedicated t))))))
+  (let ((key-guide-buffer (get-buffer-create "*key-guide*")))
+    (if doc-alist
+        (setq key-guide-string (key-guide--create doc-alist))
+      (unless (and key-guide-string
+                   (not (eq (current-buffer)
+                            (buffer-local-value key-guide-associated-buffer
+                                                key-guide-buffer))))
+        (setq key-guide-string (key-guide--create (key-guide-alist-get)))))
+    (let ((assoc-buf (current-buffer))
+          (key-guide key-guide-string))
+      (with-current-buffer key-guide-buffer
+        (read-only-mode 0)
+        (erase-buffer)
+        (setq cursor-type nil)
+        (setq key-guide-associated-buffer assoc-buf)
+        (insert key-guide)
+        (setq truncate-lines t)
+        (read-only-mode)
+        (goto-char (point-min))
+        (display-buffer-at-bottom (current-buffer)
+                                  (list (cons 'window-height (count-lines (point-min) (point-max)))
+                                        (cons 'window-parameters '((mode-line-format . none)
+                                                                   (no-other-window . t)))
+                                        (cons 'dedicated t)))))))
 
 ;;;###autoload
 (defun key-guide-toggle ()
   (interactive)
-  (if-let (buf (get-buffer "*key-guide*"))
-      (kill-buffer buf)
-    (if (or key-guide-string (alist-get major-mode key-guide-alist))
-        (key-guide-show)
-      (user-error "No `key-guide-alist' defined in this buffer"))))
+  (let ((buf (get-buffer "*key-guide*")))
+    (cond (buf (setq key-guide-show nil)
+               (kill-buffer buf))
+          (t
+           (setq key-guide-show t)
+           (if (or key-guide-string
+                   (key-guide-alist-get))
+               (key-guide-show)
+             (user-error "No `key-guide-alist' defined in this buffer"))))))
 
 (defun key-guide-set-doc-alist (mode alist)
   (setf (alist-get mode key-guide-alist) alist))
@@ -202,14 +222,23 @@
 (defun key-guide-hydra-style ()
   (setq key-guide-hydra-style t))
 
-(defun key-guide-hook-function ()
-  (when-let (alist (alist-get major-mode key-guide-alist))
-    (unless key-guide-string
-      (setq key-guide-string (key-guide--create alist)))))
+;; (defun key-guide-major-mode-hook-function ()
+;;   (when-let (alist (key-guide-alist-get))
+;;     (unless key-guide-string
+;;       (setq key-guide-string (key-guide--create alist)))))
 
-(add-hook 'after-change-major-mode-hook 'key-guide-hook-function)
 ;; (add-hook 'after-change-major-mode-hook 'key-guide-hydra-style)
 
+(defun key-guide-window-selection-change-hook-function (&optional arg)
+  (if (and key-guide-show
+           (or key-guide-string (key-guide-alist-get)))
+      (key-guide-show)
+    (when-let (buf (get-buffer-create "*key-guide*"))
+      (kill-buffer buf))))
+
+(add-hook 'after-change-major-mode-hook 'key-guide-window-selection-change-hook-function)
+(add-hook 'window-selection-change-functions #'key-guide-window-selection-change-hook-function)
+(add-hook 'window-configuration-change-hook #'key-guide-window-selection-change-hook-function)
 (global-set-key (kbd "C-.") #'key-guide-toggle)
 
 (provide 'key-guide)
