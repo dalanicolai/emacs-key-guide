@@ -1,110 +1,490 @@
 * key-guide
 Easily add key bindings overviews to your buffers.
 
-* Introduction
-This package package provides functionality for quickly adding key binding
-overviews, similar to the [[https://github.com/abo-abo/hydra][hydra]] and [[https://github.com/magit/transient][transient]] packages, but in a often much
-faster way. Both hydra and transient provide their own separate keymaps, which
-are often unwanted if one only tries to provide a simple key binding overview.
+** key-guide development notes
+These notes describes and motivates the steps until a first basic working
+version of =key-guide=. A lot has been added to the package's .el file after
+tangling a first initial version from these notes. Real documentation and
+possibly a of these notes will follow soon.
 
-[[key-guide-which-key-style.png]]
-/Which key style (vanilla Emacs)/
-
-[[key-guide-hydra-style.png]]
-/Which key style (Spacemacs)/
-
-* Installation
-
-This package for the moment will not be available from any package archive (see
-[[https://github.com/dalanicolai/emacs-key-guide#contribute][Contribute]], so use any prefered method to install this package directly from the
-git repo. Or for the most simple alternative, just download en load the
-key-guide.el file.
-
-* Usage
-Key overviews can be provided in several ways, ranging from very simple to
-simple.
-
-*The quick 'static' way* Add a 'static' key guide for some major mode by defining
-a 'keys style' /key-guide-alist/ containing elements of the form =(heading .
-(keybindings))=, provided as a string and a list of strings (formatted in
-compliance with =kbd= format) respectively, using the function
-[[help:key-guide-set-doc-alist][key-guide-set-doc-alist]] as follows:
+Let's first define some command here for testing:
 #+begin_src emacs-lisp :results silent
-  (key-guide-set-doc-alist 'Info-mode '(("Navigation" "n" "p" "SPC" "DEL")
-                                        ("Navigation" "]" "[" "m" "TAB" "M-TAB")
-                                        ("Help" "?" "H")))
+  (setq command 'evil-next-line)
 #+end_src
-then after visiting some =Info= buffer, press ~C-.~ to toggle the key guide. The
-above snippet is only an example, as a key-guide definition for Info-mode is
-already included in the package.
-
-It is also possible to add custom descriptions by replacing a single key
-string with a list of the format (key-string description), both strings.
-This can also be used to print two keybindings on a single line:
-#+begin_src emacs-lisp :results silent
-  (key-guide-set-doc-alist 'Info-mode '(("Navigation"
-                                         ("]/[" "forward/backward node")
-                                         ("SPC/DEL" "forward/backward screen")
-                                         ("n/p" "next/prev main node"))
-                                        ("Help" "?" "H")))
+We can get its keybindings via =where-is-internal=
+#+begin_src emacs-lisp :results drawer
+  (where-is-internal command)
 #+end_src
 
-When defining keys directly in the alist, these keys will not automatically get
-updated after some change in the keybindings. If you prefer the keys to get
-updated automatically when changing the keybindings, define a 'function style'
-key-guide-alist.
+#+RESULTS:
+:results:
+([down] [106])
+:end:
 
-*The robust, but still fast, 'dynamic' way* For defining a dynamic key guide, the
- fastest method is to define a static alist containing keys of currently valid
- keybindings, then visit a buffer of the mode where for which the key-guide is
- destined, and create a dynamic style key-guide-alist using the
- =key-guide-format-keys-to-functions= function as follows:
-#+begin_src emacs-lisp :results silent
-  (key-guide-format-keys-to-functions '(("Navigation" "n" "p" "SPC" "DEL")
-                                        ("Navigation" "]" "[" "m" "<tab>" "M-<tab>")
-                                        ("Help" "?" "H")))
-#+end_src
-(it is also supported to pass alists including custom descriptions to the
-=key-guide-format-keys-to-functions= function).
-
-This will add the 'dynamic style' key-guide-alist to the kill ring so that you
-can use it in the /key-guide-set-doc-alist/ function as follows:
-#+begin_src emacs-lisp :results silent
-  (key-guide-set-doc-alist 'Info-mode '((Info-mode ("Navigation"
-                                                    ((Info-next))
-                                                    ((Info-prev))
-                                                    ((Info-scroll-up))
-                                                    ((Info-scroll-down)))
-                                                   ("Navigation"
-                                                    ((Info-forward-node))
-                                                    ((Info-backward-node))
-                                                    ((Info-menu))
-                                                    ((Info-next-reference))
-                                                    ((Info-prev-reference)))
-                                                   ("Help"
-                                                    ((Info-summary))
-                                                    ((describe-mode))))))
+ We can get a better key description, using =key-description=
+#+begin_src emacs-lisp :results drawer
+  (let ((keys (where-is-internal command)))
+    (mapconcat #'key-description keys "/"))
 #+end_src
 
-** Hydra style formatting
-The key guides get formatted in 'which-key' style by default. If you prefer a
-hydra style format then either configure it per mode by adding the
-=key-guide-hydra-style= function to the appropriate major-mode hook. Or to use it
-globally, add the function to the =after-change-major-mode-hook= as follows:
-#+begin_src emacs-lisp :results silent
-  (add-hook 'after-change-major-mode-hook 'key-guide-hydra-style)
+#+RESULTS:
+:results:
+<down>/j
+:end:
+
+In our which-key style key-guide, we would like to get rid of the "</>"
+#+begin_src emacs-lisp :results drawer
+  (let ((keys (mapcar #'key-description (where-is-internal command))))
+    (mapconcat (lambda (k)
+                 (if (and (string= (substring k 0 1) "<")
+                          (> (length k) 1))
+                     (car (split-string k "[<>]" t))
+                   k))
+               keys "/"))
 #+end_src
 
-* Contribute
-Contributions are very much appreciated. You could contribute by helping to
-prepare the package for publication on some archive (see [[https://github.com/melpa/melpa/blob/master/CONTRIBUTING.org#making-your-package-ready-for-inclusion][the MELPA guide]] for
-advice), or by making a donation (maybe also check out [[https://github.com/dalanicolai][my other packages]]).
+#+RESULTS:
+:results:
+down/j
+:end:
+
+Normally we want only a single key-desc to get printed. Additionally, for evil
+users, the preferred key to get printed should be a "non-special" key, which (I
+guess) means it should be a unicode characters (i.e. represented by a vector
+containing a number). So let's make the description function configurable
+#+begin_src emacs-lisp :results output
+  (defun key-guide-get-key-desc (command &optional type hydra)
+    "TYPE can be `all' or `evil'"
+    (let ((keys (where-is-internal command)))
+      (when keys
+        (let* ((keys-select (pcase type
+                              ('evil (list (seq-find (lambda (k)
+                                                       (numberp (aref k 0)))
+                                                     keys)))
+                              ('all keys)
+                              (_ (list (car keys)))))
+               (key-desc (mapcar #'key-description keys-select)))
+          (apply #'propertize
+                 (mapconcat (lambda (k)
+                              (apply #'propertize
+                                     (if (and (string= (substring k 0 1) "<")
+                                              (> (length k) 1))
+                                         (car (split-string k "[<>]" t))
+                                       k)
+                                     (when hydra '(face font-lock-comment-face))))
+                            key-desc "/")
+                 (unless hydra '(face font-lock-function-name-face)))))))
+
+  (print (key-guide-get-key-desc command 'all t))
+#+end_src
+
+#+RESULTS:
+: 
+: #("down/j" 0 4 (face font-lock-comment-face) 5 6 (face font-lock-comment-face))
+
+
+Let's start with the simplest key guide, if we provide some command (or
+function), we want its keybindings to get printed. If no bindings have been
+defined then we still want it to get printed with no keybindings.
+#+begin_src emacs-lisp :results drawer
+  (concat (key-guide-get-key-desc command 'all) " " (symbol-name command))
+#+end_src
+
+#+RESULTS:
+:results:
+down/j evil-next-line
+:end:
+
+We would like to format it like which key (unfortunately I don't know an easy
+way to make org-mode show the text-properties):
+#+begin_src emacs-lisp :results output
+  (defun key-guide-create-key-doc (key-desc doc)
+    (concat (propertize key-desc 'face 'font-lock-function-name-face)
+            (propertize " → " 'face 'font-lock-comment-face)
+            doc))
+
+  (print (key-guide-create-key-doc "a/b" "hello/bye"))
+#+end_src
+
+#+RESULTS:
+: 
+: #("a/b → hello/bye" 0 3 (face font-lock-function-name-face) 3 6 (face font-lock-comment-face))
+
+But we would like to provide a 'hydra-style' format also:
+#+begin_src emacs-lisp :results output :tangle yes
+  (defun key-guide-create-key-doc (key-desc doc &optional hydra)
+    (concat (when hydra "[")
+            key-desc
+            (if hydra "] " (propertize " → " 'face 'font-lock-comment-face))
+            doc))
+    
+    (print (key-guide-create-key-doc (key-guide-get-key-desc command 'all) "hello/bye"))
+#+end_src
+
+#+RESULTS:
+: 
+: #("down/j → hello/bye" 0 6 (face font-lock-function-name-face) 6 9 (face font-lock-comment-face))
+
+Let's just show it in a side buffer immediately
+#+begin_src emacs-lisp :results silent
+  (let* ((key-guide-hydra-style nil) ;; set to t for hydra style
+         (key-desc (key-guide-get-key-desc command 'all key-guide-hydra-style)))
+    (with-current-buffer (get-buffer-create "*key-guide-test*")
+      (erase-buffer)
+      (setq cursor-type nil)
+      (insert (key-guide-create-key-doc key-desc (symbol-name command) key-guide-hydra-style))
+      (setq truncate-lines t)
+      (goto-char (point-min))
+      ;; side window is dedicated and does not get included when using 'other
+      ;; window action functions' (see info node `(elisp)Displaying Buffers in
+      ;; Side Windows')
+      (display-buffer-in-side-window (current-buffer)
+                                     (list (cons 'window-height (count-lines (point-min) (point-max)))
+                                           (cons 'window-parameters '((mode-line-format . none)))))))
+#+end_src
+
+
+* TODO remove or update summary
+*Summary 1*
+So now we have the functions:
+- =key-guide-get-key-desc= for getting the key(s) description
+- =key-guide-create-key-doc=  for creating the key-doc line
+
+
+  
+We want to include support for 'sections', to save us from having to define the
+same keymaps repeatedly. For example we could just create a section 'navigation'
+once, so that we can simply add/remove that section from any keymap.
+
+Furthermore, we want to support the possibility to define separate keymaps for
+different evil states (this should also make it easy to extend support for other
+insert modes like e.g. god mode if so desired at some late stage), but this we
+can add in some next step. So let's start with creating a basic structure for
+our definition alist including some section alist.
+  
+** TODO parse and insert doc-alist (start with definition with commands)
+#+begin_src emacs-lisp :results silent :tangle yes
+  (setq key-guide-sections '((navigation (next-line previous-line)
+                                         beginning-of-defun)
+                             ((navigation normal) "j/k")))
+
+  (setq key-guide-alist '((default navigation
+                                   ("Test" "a" "b"))))
+
+#+end_src
+
+Now we can (continue to) work on a function that 'processes' the above
+alist(s). We want to support the option to describe multiple bindings on a
+single line, so for that we first adapt our =key-guide-get-key-desc= function.
+#+begin_src emacs-lisp :results output :tangle yes
+    (defun key-guide-get-key-descs (command &optional type)
+      "TYPE can be `all' or `evil'"
+      (let ((keys (where-is-internal command)))
+        (when keys
+          (let* ((keys-select (pcase type
+                                ('evil (list (or (seq-find (lambda (k)
+                                                          (numberp (aref k 0)))
+                                                        keys)
+                                                 (car keys))))
+                                ('all keys)
+                                (_ (list (car keys))))))
+            (mapcar #'key-description keys-select)))))
+
+    (print (key-guide-get-key-descs 'evil-next-line 'evil))
+
+#+end_src
+
+#+RESULTS:
+: 
+: ("j")
+
+
+#+begin_src emacs-lisp :results output :tangle yes
+  (defun key-guide-format-key-descs (keys &optional type hydra)
+    (apply #'propertize
+           (mapconcat (lambda (k)
+                        (apply #'propertize
+                               (if (and (string= (substring k 0 1) "<")
+                                        (> (length k) 1))
+                                   (car (split-string k "[<>]" t))
+                                 k)
+                               (when hydra '(face font-lock-comment-face))))
+                      keys
+                      "/")
+           (unless hydra '(face font-lock-function-name-face))))
+
+  (print (key-guide-format-key-descs '("j" "k") 'evil t))
+
+#+end_src
+
+#+RESULTS:
+: 
+: #("j/k" 0 1 (face font-lock-comment-face) 2 3 (face font-lock-comment-face))
+
+Additionally, defining the bindings by 'key description' should be supported.
+#+begin_src emacs-lisp :tangle yes
+  (defun key-guide-get-commands (key-desc)
+    "Get and return list of function symbols from key description."
+    (let ((keys (split-string key-desc "/")))
+      (mapcar (lambda (k)
+                (key-binding (kbd k)))
+              keys)))
+
+  (key-guide-get-commands "j")
+#+end_src
+
+#+RESULTS:
+| evil-next-line |
+
+Let's continue with creating the function that creates the key-doc lines from
+some key-guide definition alist. However, before we can do that, we first have
+to think about the possible structures for the keybinding definitions.
+
+We would like to support the following patterns for the keybinding definitions:
+- single key-desc: ="j"=
+- single function: ='next-line=
+- multiple keys-desc: ="j/k"=
+- multiple functions: ='(next-line previous-line)= 
+
+Additionally, the definitions should accept an optional custom description:
+#+begin_src emacs-lisp
+  '((evil-next-line evil-previous-line) "next/previous line")
+#+end_src
+
+#+RESULTS:
+| (evil-next-line evil-previous-line) | next/previous line |
+
+* TODO continue here
+Now we should define the function that accepts any of those definitions and
+creates a cons (keys-desc . desc), both strings
+#+begin_src emacs-lisp :results output :tangle yes
+  (defun key-guide-parse-keybinding (definition &optional type hydra)
+    (let* ((custom-desc (and (consp definition)
+                             (stringp (car (last definition)))))
+           (bindings (if (consp definition)
+                         (if custom-desc
+                             (car definition)
+                           definition)
+                       definition))
+           (keys (cond ((consp bindings) (mapcan (lambda (c)
+                                                   (key-guide-get-key-descs c type))
+                                                 bindings))
+                       ((symbolp bindings) (key-guide-get-key-descs bindings type))
+                       (t (split-string bindings "/"))))
+           (commands (if custom-desc
+                         (car (last definition))
+                       (cond ((consp bindings) (mapconcat #'symbol-name bindings "/"))
+                             ((symbolp bindings) (symbol-name bindings))
+                             (t (mapconcat #'symbol-name (key-guide-get-commands bindings) "/"))))))
+      (cons (key-guide-format-key-descs keys type hydra) commands)))
+
+  (print (key-guide-parse-keybinding '("j" "test") nil))
+  (print (key-guide-parse-keybinding "j/k" nil t))
+  (print (key-guide-parse-keybinding 'evil-next-line 'evil))
+  (print (key-guide-parse-keybinding '((evil-next-line evil-previous-line) "test2") 'evil t))
+
+#+end_src
+
+#+RESULTS:
+: 
+: (#("j" 0 1 (face font-lock-function-name-face)) . "test")
+: 
+: (#("j/k" 0 1 (face font-lock-comment-face) 2 3 (face font-lock-comment-face)) . "evil-next-line/evil-previous-line")
+: 
+: (#("j" 0 1 (face font-lock-function-name-face)) . "evil-next-line")
+: 
+: (#("j/k" 0 1 (face font-lock-comment-face) 2 3 (face font-lock-comment-face)) . "test2")
+
+#+begin_src emacs-lisp :tangle yes
+
+   (defun key-guide-parse-alist (def-alist &optional type hydra)
+     (let ((parsed-sections (mapcar (lambda (s)
+                                      (if (symbolp s)
+                                          (cons (upcase-initials (symbol-name s))
+                                                (alist-get s key-guide-sections))
+                                        s))
+                                    def-alist)))
+       (mapcar (lambda (kb-alist)
+                 (cons (car kb-alist)
+                       (mapcar (lambda (kb)
+                                 (key-guide-parse-keybinding kb type hydra))
+                               (cdr kb-alist))))
+                 parsed-sections)))
+
+     (key-guide-parse-alist (alist-get 'default key-guide-alist) 'evil)
+
+#+end_src
+
+#+RESULTS:
+| Navigation | ( . next-line/previous-line) | (C-M-a . beginning-of-defun)   |
+| Test       | (a . evil-append)            | (b . evil-backward-word-begin) |
+
+
+Then, to make the descriptions get formatted as a nice table, we determine the
+required column lengths and pad the strings accordingly:
+#+begin_src emacs-lisp :results drawer :tangle yes
+  (defun key-guide-pad-descs (descs-alist)
+    (mapcar (lambda (s)
+              (let ((keys-length (apply #'max (mapcar (lambda (kb)
+                                                        (length (car kb)))
+                                                      (cdr s))))
+                    (descs-length (apply #'max (mapcar (lambda (kb)
+                                                         (length (cdr kb)))
+                                                       (cdr s)))))
+                (cons (string-pad (car s) (+ keys-length descs-length 5) nil)
+                      (mapcar (lambda (d)
+                                (cons (string-pad (car d) keys-length nil t)
+                                      (string-pad (cdr d) descs-length nil)))
+                              (cdr s)))))
+            descs-alist))
+
+  (pp (key-guide-pad-descs (key-guide-parse-alist (alist-get 'default key-guide-alist) 'evil)))
+#+end_src
+
+#+RESULTS:
+:results:
+(("Navigation                       "
+  ("     " . "next-line/previous-line")
+  (#("C-M-a" 0 5
+     (face font-lock-function-name-face))
+   . "beginning-of-defun     "))
+ ("Test                          "
+  (#("a" 0 1
+     (face font-lock-function-name-face))
+   . "evil-append             ")
+  (#("b" 0 1
+     (face font-lock-function-name-face))
+   . "evil-backward-word-begin")))
+:end:
+
+
+We now have all required parts for creating a key-guide. However, when inserting
+columns of text, it is slightly more straightforward to insert by row than to
+insert by column. As our list is a list of sections, which are columns, we
+define one more function to transpose the list so that we can simply insert the
+columns via a nested =dotimes=:
+#+begin_src emacs-lisp :tangle yes
+  (defun key-guide-transpose-list (list)
+    "Transpose a 2 dimensional nested list."
+    ;; determine max number of bindings in categories
+    (let ((max-category-bindings (apply #'max (mapcar #'length list)))
+          transpose)
+      (dotimes (i max-category-bindings)
+        (push (mapcar (lambda (b) (nth i b)) list) transpose))
+      (reverse transpose)))
+
+  (print (key-guide-transpose-list '((a b)  (c d e))))
+#+end_src
+
+#+RESULTS:
+| a   | c |
+| b   | d |
+| nil | e |
+
+To make our final function read in logical order we use the 'threading macro'
+from dash.el (we add a copy to this file, to avoid dependence on dash.el)
+#+begin_src emacs-lisp :tangle yes
+  (defmacro -> (x &optional form &rest more)
+  "Thread the expr through the forms. Insert X as the second item
+in the first form, making a list of it if it is not a list
+already. If there are more forms, insert the first form as the
+second item in second form, etc."
+  (declare (debug (form &rest [&or symbolp (sexp &rest form)])))
+  (cond
+   ((null form) x)
+   ((null more) (if (listp form)
+                    `(,(car form) ,x ,@(cdr form))
+                  (list form x)))
+   (:else `(-> (-> ,x ,form) ,@more))))
+#+end_src
+
+#+RESULTS:
+: ->
+
+
+#+begin_src emacs-lisp :tangle yes
+  (defun key-guide-create-string (doc-alist)
+    (let ((rows (key-guide-transpose-list doc-alist)))
+      (concat (mapconcat #'identity (car rows)) "\n"
+              (mapconcat (lambda (h)
+                           (concat (make-string (- (length h) 2)
+                                                (string-to-char "─"))
+                                   "  "))
+                         (car rows))
+              "\n"
+              (mapconcat (lambda (r)
+                           (mapconcat (lambda (kb)
+                                        (key-guide-create-key-doc (car kb) (cdr kb)))
+                                      r "  "))
+                         (cdr rows) "\n"))))
+
+  (key-guide-create-string (key-guide-pad-descs (key-guide-parse-alist (alist-get 'default key-guide-alist) 'evil)))
+#+end_src
+
+#+RESULTS:
+: Navigation                       Test                          
+: ───────────────────────────────  ────────────────────────────  
+:       → next-line/previous-line  a → evil-append             
+: C-M-a → beginning-of-defun       b → evil-backward-word-begin
+
+#+begin_src emacs-lisp :tangle yes
+  (defun key-guide-show (&optional doc-alist)
+  (let ((key-guide-buffer (get-buffer-create "*key-guide*")))
+    (if doc-alist
+        (setq key-guide-string (key-guide-create-string
+                                (key-guide-pad-descs
+                                 (key-guide-parse-alist
+                                  (alist-get 'default doc-alist)
+                                  'evil))))
+      (unless (and key-guide-string
+                   (not (eq (current-buffer)
+                            (buffer-local-value key-guide-associated-buffer
+                                                key-guide-buffer))))
+        (setq key-guide-string (key-guide--create (key-guide-alist-get)))))
+    (let ((assoc-buf (current-buffer))
+          (key-guide key-guide-string))
+      (with-current-buffer key-guide-buffer
+        (read-only-mode 0)
+        (erase-buffer)
+        (setq cursor-type nil)
+        (setq key-guide-associated-buffer assoc-buf)
+        (unless (eq assoc-buf key-guide-buffer)
+          (insert key-guide))
+        (setq truncate-lines t)
+        (read-only-mode)
+        (goto-char (point-min))
+        ;; side window is dedicated and does not get included when using 'other
+        ;; window action functions' (see info node `(elisp)Displaying Buffers in
+        ;; Side Windows')
+        (display-buffer-in-side-window (current-buffer)
+                                       (list (cons 'window-height (count-lines (point-min) (point-max)))
+                                             (cons 'window-parameters '((mode-line-format . none)))))))))
+
+  (key-guide-show key-guide-alist)
+#+end_src
+
+#+RESULTS:
+: #<window 13 on *key-guide*>
 
 
 
+* TODO implements below section later (first continue above)
+(Let's see what information we can show about accepted arguments. At least we
+can show
+- if a command takes an arguments at all (length interactive-form > 1)
+- if a command takes a universal argument exclusively
 
+#+begin_src emacs-lisp
+  (defun key-guide-command-accepts-arg ()
+    (let* ((int-form (interactive-form 'eval-expression))
+           (int-form-list (alist-get 'list int-form)))
+      (or (member "P" int-form)
+          (member "p" int-form)
+          (memq 'current-prefix-arg int-form-list)
+          (seq-find (lambda (e) (memq 'current-prefix-arg e))
+                    (alist-get 'cons int-form)))))
+#+end_src
 
-
-
-
+#+RESULTS:
+: key-guide-command-accepts-arg
 
