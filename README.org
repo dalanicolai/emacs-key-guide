@@ -1,8 +1,10 @@
 * key-guide
-Easily add key bindings overviews to your buffers.
+Easily add key-binding overviews to your buffers.
+
+[[key-guide-demo.png]]
 
 ** key-guide development notes
-These notes describes and motivates the steps until a first basic working
+These notes describe and motivate the steps until a first basic working
 version of =key-guide=. A lot has been added to the package's .el file after
 tangling a first initial version from these notes. Real documentation and
 possibly a of these notes will follow soon.
