@@ -201,7 +201,7 @@
 (defun key-guide-alist-get ()
   (or (when (and (featurep 'evil)
                  (not (eq evil-state 'emacs)))
-        (or (alist-get (list major-mode evil-state) key-guide-alist)
+        (or (alist-get (list major-mode evil-state) key-guide-alist nil nil #'equal)
             (alist-get (list 'default evil-state) key-guide-alist nil nil #'equal)))
       (alist-get major-mode key-guide-alist)
       (alist-get 'default key-guide-alist)))
