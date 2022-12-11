@@ -1,7 +1,7 @@
 * key-guide
 Easily add key-binding overviews to your buffers.
 
-[[key-guide-demo.png]]
+[[file:key-guide-demo.png]]
 
 ** key-guide development notes
 These notes describe and motivate the steps until a first basic working
