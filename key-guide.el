@@ -106,6 +106,7 @@
                           ((default visual)
                            ("Infix" ("i/a" "inner/a (incl. space)"))
                            ("Suffix" ("o/w" "object/word") ("(/[/..." "delimiter")))
+
                           (Info-mode
                            ("Navigation"
                             (Info-scroll-down Info-scroll-up)
@@ -116,7 +117,60 @@
                             (Info-next-reference Info-prev-reference))
                            ("Help"
                             (Info-summary)
-                            (describe-mode)))))
+                            (describe-mode)))
+
+                          (ebib-index-mode
+                           ("Action"
+                            ebib-view-file
+                            ebib-browse-url)
+                           ("navigation"
+                            ebib-jump-to-entry))
+
+                          (calendar-mode
+                           ("Navigation"
+                            (calendar-forward-day calendar-backward-day))
+                           ("Navigation"
+                            (calendar-beginning-of-year calendar-beginning-of-year)))
+
+                          ((dired-mode normal)
+                           ("Navigation"
+                            ((dired-next-line dired-previous-line) "next/previous line")
+                            (dired-goto-file "jump to file")
+                            ((dired-isearch-filenames dired-isearch-filenames) "isearch files (regexp)"))
+                           ("Delete"
+                            (dired-flag-file-deletion "flag for deletion")
+                            (dired-unmark "remove flag (in region)")
+                            (dired-unmark-backward "delete mark previous line")
+                            (dired-do-flagged-delete "delete flagged files")
+                            (dired-do-delete "delete marked files"))
+                           ("Flagging"
+                            (dired-flag-auto-save-files "flag all auto saved files")
+                            (dired-flag-backup-files "flag all backup files")
+                            (dired-clean-directory "flag excess numeric backup files")
+                            (dired-flag-garbage-files "flag garbage files")
+                            (dired-flag-files-regexp "flag files matching regexp"))
+                           ("Visiting"
+                            (dired-find-file "visit file")
+                            (dired-find-file-other-window "visit file other window")
+                            (dired-display-file "visit file no select")
+                            (dired-view-file "view file")
+                            (dired-up-directory "directory up"))
+                           ("Marks"
+                            (dired-mark "mark file")
+                            (dired-number-of-marked-files "number and size of marked files")
+                            (dired-mark-executables "mark executable files")
+                            (dired-mark-symlinks "mark symlinks")
+                            (dired-mark-directories "mark named directories")
+                            (dired-mark-subdir-files "mark files in subdir")
+                            (dired-unmark "unmark file")
+                            (dired-unmark-backward "unmark previous line")
+                            (dired-unmark-all-marks "remove all marks current buffer"))
+                           ("Operations"
+                            (dired-do-copy "copy")
+                            (dired-do-delete "delete")
+                            (dired-do-rename "rename")
+                            (dired-do-hardlink "make hardlink")
+                            (dired-do-symlink "make symlink")))))
 
 
 
@@ -418,7 +472,8 @@ second item in second form, etc."
   (add-hook 'evil-insert-state-entry-hook #'key-guide-state-change-hook-function)
   (add-hook 'evil-visual-state-entry-hook #'key-guide-state-change-hook-function)
 
-  (evil-global-set-key 'normal (kbd "C-.") #'key-guide-toggle))
+  (dolist (map '(motion normal insert))
+    (evil-global-set-key map (kbd "C-.") #'key-guide-toggle)))
 
 (global-set-key (kbd "C-.") #'key-guide-toggle)
 
